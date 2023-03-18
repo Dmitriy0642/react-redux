@@ -1,5 +1,5 @@
 import { reduce } from "lodash";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 
 function taskReducer(state, action) {
@@ -19,31 +19,52 @@ function taskReducer(state, action) {
 
 function createStore(reducer, initialState) {
   let state = initialState;
+  let listeners = [];
   function getState() {
     return state;
   }
   function dispatch(action) {
-    if (action.type === "task/complited") {
-      state = reducer(state, action);
+    state = reducer(state, action);
+    for (let i = 0; i < listeners.length; i++) {
+      const listener = listeners[i];
+      listener();
     }
   }
-
-  return { getState, dispatch };
+  function subscribe(listener) {
+    listeners.push(listener);
+  }
+  return { getState, dispatch, subscribe };
 }
 const store = createStore(taskReducer, [
   { id: 1, description: "Task 1", complited: false },
+  { id: 2, description: "Task 2", complited: false },
 ]);
 const App = () => {
-  console.log(store.getState());
-  const complitedTask = () => {
-    store.dispatch({ type: "task/complited", payload: { id: 1 } });
-    console.log(store.getState());
+  const [state, setState] = useState(store.getState());
+
+  useEffect(() => {
+    store.subscribe(() => {
+      setState(store.getState());
+    });
+  }, []);
+
+  const complitedTask = (taskId) => {
+    store.dispatch({ type: "task/complited", payload: { id: taskId } });
   };
 
   return (
     <>
       <h1>App</h1>
-      <button onClick={complitedTask}>Complete</button>
+      <ul>
+        {state.map((el) => (
+          <li key={el.id}>
+            <p>{el.description}</p>
+            <p>Complited : {`${el.complited}`}</p>
+            <button onClick={() => complitedTask(el.id)}>Complete</button>
+            <hr />
+          </li>
+        ))}
+      </ul>
     </>
   );
 };
